@@ -1,0 +1,114 @@
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce-network
+
+  # Product Service
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_SERVLET_CONTEXT_PATH: /api
+    networks:
+      - ecommerce-network
+
+  # Product Service Bad
+  product-service-bad:
+    build:
+      context: ./services/product-service-bad
+      dockerfile: Dockerfile
+    container_name: product-service-bad
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_SERVLET_CONTEXT_PATH: /api
+    networks:
+      - ecommerce-network
+
+  # Credit Card Authorizer
+  credit-card-authorizer:
+    build:
+      context: ./services/credit-card-authorizer
+      dockerfile: Dockerfile
+    container_name: credit-card-authorizer
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/credit-card-authorizer/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    networks:
+      - ecommerce-network
+
+  # Shopping Cart Service
+  shopping-cart-service:
+    build:
+      context: ./services/shopping-cart-service
+      dockerfile: Dockerfile
+    container_name: shopping-cart-service
+    ports:
+      - "8083:8083"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      QUEUE_NAME: warehouse-orders-queue
+      EXCHANGE_NAME: warehouse-orders-exchange
+      ROUTING_KEY: warehouse.orders
+      RABBITMQ_ENABLED: "true"
+      CCA_URL: http://credit-card-authorizer:8082/credit-card-authorizer/authorize
+      CCA_MOCK: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      credit-card-authorizer:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  # Warehouse Service
+  warehouse-service:
+    build:
+      context: ./services/warehouse-service
+      dockerfile: Dockerfile
+    container_name: warehouse-service
+    ports:
+      - "8084:8084"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      QUEUE_NAME: warehouse-orders-queue
+      CONSUMER_CONCURRENCY: 20
+      CONSUMER_MAX_CONCURRENCY: 40
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge

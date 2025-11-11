@@ -1,0 +1,21 @@
+# Correct values discovered on Wed Oct 29 15:30:37 PDT 2025
+
+variable "vpc_id" {
+  default = "vpc-004ed97e70b276c16"
+}
+
+variable "subnet_ids" {
+  default = ["subnet-0e6981c6a26419f79", "subnet-0c1b3cdad848ad02d"]
+}
+
+variable "security_group_id" {
+  default = ""
+}
+
+variable "target_group_arn" {
+  default = "arn:aws:elasticloadbalancing:us-east-1:533267331581:targetgroup/cca-tg/b7db4eb8e6f10afe"
+}
+
+variable "key_name" {
+  default = "Team"
+}

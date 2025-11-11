@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  product-service-bad:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: product-service-bad
+    ports:
+      - "8081:8081"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge
+

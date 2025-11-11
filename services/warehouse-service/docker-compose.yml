@@ -1,0 +1,45 @@
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq-warehouse
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - warehouse-network
+
+  # Warehouse Service
+  warehouse-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: warehouse-service
+    ports:
+      - "8084:8084"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      QUEUE_NAME: warehouse-orders-queue
+      CONSUMER_CONCURRENCY: 5
+      CONSUMER_MAX_CONCURRENCY: 10
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - warehouse-network
+
+networks:
+  warehouse-network:
+    driver: bridge
+
